@@ -4,7 +4,7 @@ with builtins; with lib;
 
 let
   cfg = config.wsl;
-  
+
   mkWslLib = extraLinks:
     assert cfg.useWindowsDriver;
     pkgs.runCommand "wsl-lib" { } ''
@@ -41,13 +41,13 @@ in
   options.wsl = with types; {
     enable = mkEnableOption "support for running NixOS as a WSL distribution";
     useWindowsDriver = mkEnableOption "OpenGL driver from the Windows host";
-    
+
     wslLibExtraLinks = mkOption {
       type = listOf str;
-      default = [];
+      default = [ ];
       description = "Additional /usr/lib/wsl/lib/ paths to symlink into wsl-lib";
     };
-    
+
     binShPkg = mkOption {
       type = package;
       internal = true;
