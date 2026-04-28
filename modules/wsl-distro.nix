@@ -102,13 +102,13 @@ in
   };
 
   config = mkIf cfg.enable {
-    # WSL uses its own kernel and boot loader
     nixpkgs.overlays = [
       (final: prev: {
         wsl-lib = mkWslLib cfg.wslLibExtraLinks;
       })
     ];
 
+    # WSL uses its own kernel and boot loader
     boot = {
       bootspec.enable = false;
       initrd.enable = false;
