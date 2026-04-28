@@ -48,6 +48,13 @@ in
       description = "Additional /usr/lib/wsl/lib/ paths to symlink into wsl-lib";
     };
 
+    wslLib = mkOption {
+      type = package;
+      default = mkWslLib cfg.wslLibExtraLinks;
+      defaultText = literalExpression "mkWslLib config.wsl.wslLibExtraLinks";
+      description = "WSL GPU driver library package with symlinks to Windows host drivers";
+    };
+
     binShPkg = mkOption {
       type = package;
       internal = true;
@@ -102,12 +109,6 @@ in
   };
 
   config = mkIf cfg.enable {
-    nixpkgs.overlays = [
-      (final: prev: {
-        wsl-lib = mkWslLib cfg.wslLibExtraLinks;
-      })
-    ];
-
     # WSL uses its own kernel and boot loader
     boot = {
       bootspec.enable = false;
@@ -124,7 +125,7 @@ in
     hardware.graphics = {
       enable = true; # Enable GPU acceleration
 
-      extraPackages = mkIf cfg.useWindowsDriver [ pkgs.wsl-lib ];
+      extraPackages = mkIf cfg.useWindowsDriver [ (mkWslLib cfg.wslLibExtraLinks) ];
     };
 
     environment = {
