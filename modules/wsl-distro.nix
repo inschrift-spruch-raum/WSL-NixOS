@@ -146,6 +146,9 @@ in
     # dhcp is handled by windows
     networking.dhcpcd.enable = false;
 
+    # disable resolvconf if WSL is managing it
+    networking.resolvconf.enable = !config.wsl.wslConf.network.generateResolvConf;
+
     users.users.${cfg.defaultUser} = {
       isNormalUser = true;
       uid = mkDefault 1000;
