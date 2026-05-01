@@ -147,7 +147,7 @@ in
     networking.dhcpcd.enable = false;
 
     # disable resolvconf if WSL is managing it
-    networking.resolvconf.enable = !config.wsl.wslConf.network.generateResolvConf;
+    networking.resolvconf.enable = mkIf config.wsl.wslConf.network.generateResolvConf false;
 
     users.users.${cfg.defaultUser} = {
       isNormalUser = true;
