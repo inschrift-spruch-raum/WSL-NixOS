@@ -5,38 +5,13 @@ with builtins; with lib;
 let
   cfg = config.wsl;
 
-  defaultLinks = [
-    "/usr/lib/wsl/lib/libcudadebugger.so.1"
-    "/usr/lib/wsl/lib/libcuda.so"
-    "/usr/lib/wsl/lib/libcuda.so.1"
-    "/usr/lib/wsl/lib/libcuda.so.1.1"
-    "/usr/lib/wsl/lib/libd3d12core.so"
-    "/usr/lib/wsl/lib/libd3d12.so"
-    "/usr/lib/wsl/lib/libdxcore.so"
-    "/usr/lib/wsl/lib/libnvcuvid.so"
-    "/usr/lib/wsl/lib/libnvcuvid.so.1"
-    "/usr/lib/wsl/lib/libnvdxdlkernels.so"
-    "/usr/lib/wsl/lib/libnvidia-encode.so"
-    "/usr/lib/wsl/lib/libnvidia-encode.so.1"
-    "/usr/lib/wsl/lib/libnvidia-gpucomp.so"
-    "/usr/lib/wsl/lib/libnvidia-ml.so.1"
-    "/usr/lib/wsl/lib/libnvidia-ngx.so.1"
-    "/usr/lib/wsl/lib/libnvidia-opticalflow.so"
-    "/usr/lib/wsl/lib/libnvidia-opticalflow.so.1"
-    "/usr/lib/wsl/lib/libnvoptix.so.1"
-    "/usr/lib/wsl/lib/libnvwgf2umx.so"
-    "/usr/lib/wsl/lib/nvidia-ngx-updater"
-    "/usr/lib/wsl/lib/nvidia-smi"
-  ];
-
-  mkWslLib = extraLinks:
+  mkWslLib =
     assert cfg.useWindowsDriver;
-    pkgs.runCommand "wsl-lib" { } ''
+    pkgs.runCommandLocal "wsl-lib" { nativeBuildInputs = [ pkgs.findutils ]; } ''
       mkdir -p "$out/lib"
-      
-      ${concatMapStrings (path: ''
-        ln -s ${escapeShellArg path} "$out/lib"
-      '') (defaultLinks ++ extraLinks)}
+
+      find /usr/lib/wsl/lib -maxdepth 1 \( -type f -o -type l \) \
+        -exec ln -s -- {} "$out/lib/" \;
     '';
 in
 {
@@ -44,16 +19,10 @@ in
     enable = mkEnableOption "support for running NixOS as a WSL distribution";
     useWindowsDriver = mkEnableOption "OpenGL driver from the Windows host";
 
-    wslLibExtraLinks = mkOption {
-      type = listOf str;
-      default = [ ];
-      description = "Additional /usr/lib/wsl/lib/ paths to symlink into wsl-lib";
-    };
-
     wslLib = mkOption {
       type = package;
-      default = mkWslLib cfg.wslLibExtraLinks;
-      defaultText = literalExpression "mkWslLib config.wsl.wslLibExtraLinks";
+      default = mkWslLib;
+      defaultText = literalExpression "mkWslLib";
       description = "WSL GPU driver library package with symlinks to Windows host drivers";
     };
 
@@ -128,6 +97,8 @@ in
 
       extraPackages = mkIf cfg.useWindowsDriver [ cfg.wslLib ];
     };
+
+    nix.settings.extra-sandbox-paths = [ "/usr/lib/wsl/lib" ];
 
     environment = {
       # Only set the options if the files are managed by WSL
