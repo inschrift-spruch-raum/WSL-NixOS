@@ -83,7 +83,7 @@ let
       find "$out/share/vulkan/icd.d" -name 'dzn_icd.*.json' -exec chmod u+w {} +
 
       patchelf \
-        --add-needed "${cfg.wslLib}/lib/libd3d12.so" \
+        --set-rpath "/run/opengl-driver/lib" \
         "$out/lib/libvulkan_dzn.so"
 
       find "$out/share/vulkan/icd.d" -name 'dzn_icd.*.json' \
