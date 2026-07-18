@@ -66,6 +66,17 @@ let
       fi
 
     '';
+
+  mkWslMesa =
+    assert cfg.useWindowsDriver;
+    pkgs.mesa.overrideAttrs (old: {
+      nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.patchelf ];
+      postFixup = (old.postFixup or "") + ''
+        patchelf \
+          --add-needed "${cfg.wslLib}/lib/libd3d12.so" \
+          "$out/lib/libvulkan_dzn.so"
+      '';
+    });
 in
 {
   options.wsl = with types; {
@@ -148,6 +159,7 @@ in
     hardware.graphics = {
       enable = true; # Enable GPU acceleration
 
+      package = mkIf cfg.useWindowsDriver mkWslMesa;
       extraPackages = mkIf cfg.useWindowsDriver [ cfg.wslLib ];
     };
 
