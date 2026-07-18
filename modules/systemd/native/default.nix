@@ -62,6 +62,7 @@ with lib; {
         variables.PATH = [ "$PATH" ];
         extraInit = ''
           eval $(${config.system.build.nativeUtils}/bin/split-path --automount-root="${cfg.wslConf.automount.root}" ${lib.optionalString cfg.interop.includePath "--include-interop"})
+          export PATH="/run/current-system/sw/bin:$PATH"
         '';
       };
     };

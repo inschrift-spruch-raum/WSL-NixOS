@@ -101,6 +101,8 @@ in
     nix.settings.extra-sandbox-paths = [ "/usr/lib/wsl/lib" ];
 
     environment = {
+      systemPackages = mkIf cfg.useWindowsDriver [ cfg.wslLib ];
+
       # Only set the options if the files are managed by WSL
       etc = mkMerge [
         (mkIf config.wsl.wslConf.network.generateHosts {
