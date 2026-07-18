@@ -60,15 +60,11 @@ let
       done
 
       if [[ -f "$out/lib/libd3d12core.so" && ! -L "$out/lib/libd3d12core.so" ]]; then
-        appendRunpaths=(
-          "$out/lib"
-          "${lib.getLib pkgs.openssl}/lib"
-          "${lib.getLib pkgs.stdenv.cc.cc}/lib"
-        )
-        autoPatchelf "$out/lib/libd3d12core.so"
-        rpath=$(patchelf --print-rpath "$out/lib/libd3d12core.so")
-        patchelf --force-rpath --set-rpath "$rpath" "$out/lib/libd3d12core.so"
+        patchelf \
+          --add-needed "${lib.getLib pkgs.openssl}/lib/libssl.so" \
+          "$out/lib/libd3d12core.so"
       fi
+
     '';
 in
 {
