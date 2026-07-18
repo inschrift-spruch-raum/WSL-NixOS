@@ -67,16 +67,31 @@ let
 
     '';
 
-  mkWslMesa =
-    assert cfg.useWindowsDriver;
-    pkgs.mesa.overrideAttrs (old: {
-      nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.patchelf ];
-      postFixup = (old.postFixup or "") + ''
-        patchelf \
-          --add-needed "${cfg.wslLib}/lib/libd3d12.so" \
-          "$out/lib/libvulkan_dzn.so"
-      '';
-    });
+  wslMesaOverlay = final: prev: {
+    mesa = prev.runCommandLocal prev.mesa.name
+      {
+        nativeBuildInputs = [
+          prev.findutils
+          prev.gnused
+          prev.patchelf
+        ];
+        passthru = prev.mesa.passthru;
+      } ''
+      mkdir -p "$out"
+      cp -a ${prev.mesa}/. "$out/"
+      chmod u+w "$out/lib/libvulkan_dzn.so" "$out/share/vulkan/icd.d"
+      find "$out/share/vulkan/icd.d" -name 'dzn_icd.*.json' -exec chmod u+w {} +
+
+      patchelf \
+        --add-needed "${cfg.wslLib}/lib/libd3d12.so" \
+        "$out/lib/libvulkan_dzn.so"
+
+      find "$out/share/vulkan/icd.d" -name 'dzn_icd.*.json' \
+        -exec sed -i \
+          "s|${prev.mesa}/lib/libvulkan_dzn.so|$out/lib/libvulkan_dzn.so|" \
+          {} +
+    '';
+  };
 in
 {
   options.wsl = with types; {
@@ -153,13 +168,14 @@ in
     };
     system.build.installBootLoader = "${pkgs.coreutils}/bin/true";
 
+    nixpkgs.overlays = mkIf cfg.useWindowsDriver [ wslMesaOverlay ];
+
     # WSL does not support virtual consoles
     console.enable = false;
 
     hardware.graphics = {
       enable = true; # Enable GPU acceleration
 
-      package = mkIf cfg.useWindowsDriver mkWslMesa;
       extraPackages = mkIf cfg.useWindowsDriver [ cfg.wslLib ];
     };
 
