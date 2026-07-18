@@ -11,7 +11,18 @@ let
       mkdir -p "$out/lib"
 
       find /usr/lib/wsl/lib -maxdepth 1 \( -type f -o -type l \) \
+        ! -name libd3d12core.so ! -name nvidia-smi \
         -exec ln -s -- {} "$out/lib/" \;
+
+      if [[ -e /usr/lib/wsl/lib/libd3d12core.so ]]; then
+        install -Dm755 /usr/lib/wsl/lib/libd3d12core.so "$out/lib/libd3d12core.so"
+      fi
+
+      if [[ -x /usr/lib/wsl/lib/nvidia-smi ]]; then
+        install -Dm755 /usr/lib/wsl/lib/nvidia-smi "$out/bin/nvidia-smi"
+      fi
+
+
     '';
 in
 {
