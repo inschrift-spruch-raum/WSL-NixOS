@@ -11,35 +11,53 @@ let
       {
         nativeBuildInputs = [
           pkgs.autoPatchelfHook
+          pkgs.binutils
           pkgs.findutils
         ];
         buildInputs = [ pkgs.glibc ];
       } ''
       mkdir -p "$out/lib"
 
-      find /usr/lib/wsl/lib -maxdepth 1 \( -type f -o -type l \) \
-        ! -name libd3d12core.so ! -name nvidia-smi \
-        -exec ln -s -- {} "$out/lib/" \;
+      is_executable_program() {
+        local source=$1
+        if readelf --file-header "$source" >/dev/null 2>&1; then
+          readelf --file-header "$source" 2>/dev/null | grep -q "Type:.*EXEC" ||
+            readelf --program-headers "$source" 2>/dev/null |
+              grep -Fq "Requesting program interpreter"
+        else
+          [[ -x "$source" ]]
+        fi
+      }
+
+      while IFS= read -r -d $'\0' source; do
+        if is_executable_program "$source"; then
+          install -Dm755 "$source" "$out/bin/$(basename "$source")"
+        else
+          ln -s -- "$source" "$out/lib/"
+        fi
+      done < <(
+        find /usr/lib/wsl/lib -maxdepth 1 \( -type f -o -type l \) \
+          ! -name libd3d12core.so -print0
+      )
 
       if [[ -e /usr/lib/wsl/lib/libd3d12core.so ]]; then
         install -Dm755 /usr/lib/wsl/lib/libd3d12core.so "$out/lib/libd3d12core.so"
       fi
 
-      if [[ -x /usr/lib/wsl/lib/nvidia-smi ]]; then
-        install -Dm755 /usr/lib/wsl/lib/nvidia-smi "$out/bin/nvidia-smi"
-      fi
-
       runtimeDependencies=( "$out" )
       autoPatchelf "$out"
 
-      if [[ -x "$out/bin/nvidia-smi" ]]; then
-        rpath=$(patchelf --print-rpath "$out/bin/nvidia-smi")
+      for executable in "$out/bin"/*; do
+        [[ -e "$executable" ]] || continue
+        readelf --program-headers "$executable" 2>/dev/null |
+          grep -Fq "Requesting program interpreter" || continue
+        rpath=$(patchelf --print-rpath "$executable")
         if [[ ":$rpath:" != *:"$out/lib":* ]]; then
-          echo "autoPatchelf did not add $out/lib to nvidia-smi's RPATH" >&2
+          echo "autoPatchelf did not add $out/lib to $executable's RPATH" >&2
           exit 1
         fi
-        patchelf --force-rpath --set-rpath "$rpath" "$out/bin/nvidia-smi"
-      fi
+        patchelf --force-rpath --set-rpath "$rpath" "$executable"
+      done
 
       if [[ -f "$out/lib/libd3d12core.so" && ! -L "$out/lib/libd3d12core.so" ]]; then
         appendRunpaths=(
