@@ -7,7 +7,14 @@ let
 
   mkWslLib =
     assert cfg.useWindowsDriver;
-    pkgs.runCommandLocal "wsl-lib" { nativeBuildInputs = [ pkgs.findutils ]; } ''
+    pkgs.runCommandLocal "wsl-lib"
+      {
+        nativeBuildInputs = [
+          pkgs.autoPatchelfHook
+          pkgs.findutils
+        ];
+        buildInputs = [ pkgs.glibc ];
+      } ''
       mkdir -p "$out/lib"
 
       find /usr/lib/wsl/lib -maxdepth 1 \( -type f -o -type l \) \
@@ -22,7 +29,28 @@ let
         install -Dm755 /usr/lib/wsl/lib/nvidia-smi "$out/bin/nvidia-smi"
       fi
 
+      runtimeDependencies=( "$out" )
+      autoPatchelf "$out"
 
+      if [[ -x "$out/bin/nvidia-smi" ]]; then
+        rpath=$(patchelf --print-rpath "$out/bin/nvidia-smi")
+        if [[ ":$rpath:" != *:"$out/lib":* ]]; then
+          echo "autoPatchelf did not add $out/lib to nvidia-smi's RPATH" >&2
+          exit 1
+        fi
+        patchelf --force-rpath --set-rpath "$rpath" "$out/bin/nvidia-smi"
+      fi
+
+      if [[ -f "$out/lib/libd3d12core.so" && ! -L "$out/lib/libd3d12core.so" ]]; then
+        appendRunpaths=(
+          "$out/lib"
+          "${lib.getLib pkgs.openssl}/lib"
+          "${lib.getLib pkgs.stdenv.cc.cc}/lib"
+        )
+        autoPatchelf "$out/lib/libd3d12core.so"
+        rpath=$(patchelf --print-rpath "$out/lib/libd3d12core.so")
+        patchelf --force-rpath --set-rpath "$rpath" "$out/lib/libd3d12core.so"
+      fi
     '';
 in
 {
